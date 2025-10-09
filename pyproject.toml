@@ -18,3 +18,8 @@ dev = [
     "python-lsp-ruff>=2.3.0",
     "pytest-cov>=7.0.0",
 ]
+
+# https://github.com/python-lsp/pylsp-mypy?tab=readme-ov-file#configuration
+[tool.pylsp-mypy]
+enabled = true
+
