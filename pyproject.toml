@@ -22,4 +22,5 @@ dev = [
 # https://github.com/python-lsp/pylsp-mypy?tab=readme-ov-file#configuration
 [tool.pylsp-mypy]
 enabled = true
+live_mode = false
 
