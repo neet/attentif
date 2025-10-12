@@ -1,33 +1,34 @@
-import numpy as np
-
-from .softmax import softmax
+import torch
+import math
 
 # S -> (S, S)
-def make_causal_mask(seq_len: int) -> np.ndarray:
-    i, j = np.ogrid[:seq_len, :seq_len]
-    return np.where(i >= j, 0, -np.inf)
+def make_causal_mask(seq_len: int) -> torch.Tensor:
+    x = torch.arange(seq_len)
+    y = torch.arange(seq_len)
+    grid_x, grid_y = torch.meshgrid(x, y, indexing="ij")
+    return torch.where(grid_x >= grid_y, torch.tensor(0.0), float("-inf"))
 
 # (B, S) -> (B, S)
-def make_padding_mask(input_ids: np.ndarray, pad_token: int) -> np.ndarray:
+def make_padding_mask(input_ids: torch.Tensor, pad_token: int) -> torch.Tensor:
     mask = input_ids == pad_token
-    return np.where(mask, -np.inf, 0)
+    return torch.where(mask, float("-inf"), torch.tensor(0.0))
 
 class CausalSelfAttentionHead:
-    input_ids: np.ndarray # (B, S)
+    input_ids: torch.Tensor # (B, S)
     pad_token: int
 
-    W_Q: np.ndarray # (H, d_k)
-    b_Q: np.ndarray # (d_k, )
+    W_Q: torch.Tensor # (H, d_k)
+    b_Q: torch.Tensor # (d_k, )
 
-    W_K: np.ndarray # (H, d_k)
-    b_K: np.ndarray # (d_k, )
+    W_K: torch.Tensor # (H, d_k)
+    b_K: torch.Tensor # (d_k, )
 
-    W_V: np.ndarray # (H, d_v)
-    b_V: np.ndarray # (d_v, )
+    W_V: torch.Tensor # (H, d_v)
+    b_V: torch.Tensor # (d_v, )
 
     d_k: int
 
-    def __call__(self, batch: np.ndarray) -> np.ndarray:
+    def __call__(self, batch: torch.Tensor) -> torch.Tensor:
         # (B, S, d_k)
         Q = batch @ self.W_Q + self.b_Q
         # (B, S, d_k)
@@ -36,7 +37,7 @@ class CausalSelfAttentionHead:
         V = batch @ self.W_V + self.b_V
 
         # (B, S, S)
-        scores = Q @ K.transpose(0, 2, 1) / np.sqrt(self.d_k)
+        scores = Q @ K.mT / math.sqrt(self.d_k)
 
         # (B, S, S)
         mask = (
@@ -47,7 +48,7 @@ class CausalSelfAttentionHead:
         )
 
         # (B, S, S)
-        attention_weights = softmax(scores + mask)
+        attention_weights = torch.softmax(scores + mask, dim=-1)
 
         # (B, S, d_v)
         output = attention_weights @ V
