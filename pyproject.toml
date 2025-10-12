@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "attentif"
 version = "0.1.0"
@@ -5,7 +9,9 @@ description = "A toy implementation of ”Attention Is All You Need”"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "jaxtyping>=0.3.3",
     "numpy>=2.3.3",
+    "torch>=2.8.0",
 ]
 
 [dependency-groups]
@@ -23,4 +29,7 @@ dev = [
 [tool.pylsp-mypy]
 enabled = true
 live_mode = false
+
+[tool.setuptools.package-dir]
+"attentif" = "src"
 

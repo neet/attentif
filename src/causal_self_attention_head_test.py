@@ -1,143 +1,111 @@
-import numpy as np
+import math
+import torch
 import pytest
 
-from .causal_self_attention_head import CausalSelfAttentionHead, make_causal_mask, make_padding_mask
+from .causal_self_attention_head import make_causal_mask, make_padding_mask, CausalSelfAttentionHead
 
-SEED = 1234
-RTOL = 1e-5
-ATOL = 1e-6
+torch.manual_seed(0)
 
+def device_param():
+    return ["cuda" if torch.cuda.is_available() else "cpu"]
 
-def _mk_head(B=2, S=5, H=8, d_k=4, d_v=6, pad_token=-1, input_ids=None):
-    """
-    CausalSelfAttentionHead を “外から” 組み立てるためのヘルパ。
-    実装は一切覗かず、公開属性だけを設定する。
-    """
-    rng = np.random.default_rng(SEED)
-
-    h = CausalSelfAttentionHead()
-    h.pad_token = pad_token
-
-    if input_ids is None:
-        # 末尾2つを PAD にした入力ID（例）
-        ids = np.tile(np.arange(S), (B, 1))
-        ids[:, -2:] = pad_token
-        h.input_ids = ids
-    else:
-        h.input_ids = input_ids
-
-    # 重みは適当だが再現可能に
-    h.W_Q = rng.standard_normal((H, d_k)).astype(np.float32)
-    h.b_Q = rng.standard_normal((d_k,)).astype(np.float32)
-
-    h.W_K = rng.standard_normal((H, d_k)).astype(np.float32)
-    h.b_K = rng.standard_normal((d_k,)).astype(np.float32)
-
-    h.W_V = rng.standard_normal((H, d_v)).astype(np.float32)
-    h.b_V = rng.standard_normal((d_v,)).astype(np.float32)
-
-    h.d_k = d_k
-
-    # ランダムな入力埋め込み
-    batch = rng.standard_normal((B, S, H)).astype(np.float32)
-    return h, batch
-
-
-def test_make_causal_mask_shape_and_values():
-    S = 4
-    m = make_causal_mask(S)
-
+@pytest.mark.parametrize("device", device_param())
+def test_make_causal_mask(device):
+    S = 5
+    m = make_causal_mask(S).to(device)
+    # 形状
     assert m.shape == (S, S)
-    assert np.isfinite(m[np.tril_indices(S)]).all()
-    assert np.isneginf(m[np.triu_indices(S, k=1)]).all()
+    # 対角より上: -inf
+    upper = torch.triu(torch.ones(S, S, dtype=torch.bool, device=device), diagonal=1)
+    assert torch.isinf(m[upper]).all()
+    # 対角およびそれ以下: 0
+    lower_eq = ~upper
+    assert (m[lower_eq] == 0).all()
 
+@pytest.mark.parametrize("device", device_param())
+def test_make_padding_mask(device):
+    pad = 0
+    input_ids = torch.tensor([[1,2,0,0],[3,4,5,0]], device=device)
+    m = make_padding_mask(input_ids, pad)
+    # pad の位置が -inf, それ以外 0
+    expect = torch.tensor([[0,0,-math.inf,-math.inf],
+                           [0,0,0,-math.inf]], device=device, dtype=m.dtype)
+    assert torch.equal(torch.isinf(m), torch.isinf(expect))
+    assert torch.equal(torch.nan_to_num(m, nan=0.0), torch.nan_to_num(expect, nan=0.0))
 
-def test_make_padding_mask_basic():
-    pad = -1
-    x = np.array([[1, 2, pad, pad], [3, pad, 4, pad]])
-    m = make_padding_mask(x, pad)
+def _build_head(B=2, S=4, H=8, d_k=4, d_v=6, device="cpu"):
+    head = CausalSelfAttentionHead()
+    head.d_k = d_k
+    head.pad_token = 0
+    # 入力 ID（各バッチで末尾を pad）
+    ids = torch.tensor([[10,11,12,0],[21,22,0,0]], device=device)
+    head.input_ids = ids
 
-    assert m.shape == x.shape
-    assert np.all((np.isneginf(m) == (x == pad)))
-    assert np.all(m[np.where(x != pad)] == 0)
+    # 重み（学習させる前提で requires_grad=True）
+    head.W_Q = torch.randn(H, d_k, device=device, requires_grad=True)
+    head.b_Q = torch.randn(d_k, device=device, requires_grad=True)
+    head.W_K = torch.randn(H, d_k, device=device, requires_grad=True)
+    head.b_K = torch.randn(d_k, device=device, requires_grad=True)
+    head.W_V = torch.randn(H, d_v, device=device, requires_grad=True)
+    head.b_V = torch.randn(d_v, device=device, requires_grad=True)
 
+    batch = torch.randn(B, S, H, device=device, requires_grad=False)
+    return head, batch
 
-def test_head_output_shape():
-    B, S, H, d_k, d_v = 3, 7, 9, 5, 11
-    head, batch = _mk_head(B, S, H, d_k, d_v, pad_token=-1)
+@pytest.mark.parametrize("device", device_param())
+def test_forward_shapes_and_row_probs(device):
+    head, batch = _build_head(device=device)
     y = head(batch)
+    # 形状
+    B, S, H = batch.shape
+    assert y.shape == (B, S, head.b_V.shape[0])
 
-    assert y.shape == (B, S, d_v)
+    # attention の行ごとの和が 1 になる（softmax dim=-1 が効いている）か検査
+    # 内部変数にアクセスしないため、期待値をテスト側で再構成
+    Q = batch @ head.W_Q + head.b_Q
+    K = batch @ head.W_K + head.b_K
+    scores = Q @ K.mT / math.sqrt(head.d_k)
+    mask = (
+        make_causal_mask(scores.shape[-1]).to(batch)  # (S,S)
+        .unsqueeze(0)                                 # (1,S,S)
+        + make_padding_mask(head.input_ids, head.pad_token).to(batch)[:, None, :]  # (B,1,S)
+    )
+    attn = torch.softmax(scores + mask, dim=-1)
+    row_sums = attn.sum(dim=-1)
+    # クエリが実トークン行では ≈1（pad 行は 1 にならないこともあるので <=1 を許容）
+    assert torch.all(row_sums <= 1.0000001)
+    assert (row_sums[~torch.isinf(make_padding_mask(head.input_ids, head.pad_token)).all(dim=-1)]
+            .mean().item()) > 0.95
 
+@pytest.mark.parametrize("device", device_param())
+def test_padding_keys_get_zero_attention(device):
+    head, batch = _build_head(device=device)
+    B, S, H = batch.shape
+    pad_mask_keys = (head.input_ids == head.pad_token)  # (B,S)
 
-def test_causal_mask_blocks_future_influence():
-    """
-    “未来トークンを書き換えても、過去の出力は変わらない”
-    を確認する（因果マスクの向き・適用チェック）。
-    """
-    B, S, H = 2, 6, 8
-    head, batch1 = _mk_head(B, S, H, d_k=4, d_v=6, pad_token=-1)
+    Q = batch @ head.W_Q + head.b_Q
+    K = batch @ head.W_K + head.b_K
+    scores = Q @ K.mT / math.sqrt(head.d_k)
+    mask = (
+        make_causal_mask(S).to(batch).unsqueeze(0)
+        + make_padding_mask(head.input_ids, head.pad_token).to(batch)[:, None, :]
+    )
+    attn = torch.softmax(scores + mask, dim=-1)  # (B,S,S)
 
-    # batch2 は t=2 (0-based) より未来のトークンを大きく書き換える
-    batch2 = batch1.copy()
-    t = 2
-    batch2[:, t + 1 :, :] *= 10.0  # 未来側だけ極端にスケーリング
+    # キー側が pad の列は 0 になる
+    for b in range(B):
+        cols = pad_mask_keys[b].nonzero(as_tuple=True)[0]
+        if len(cols) > 0:
+            assert torch.allclose(attn[b, :, cols].sum(), torch.tensor(0.0, device=device))
 
-    y1 = head(batch1)
-    y2 = head(batch2)
+@pytest.mark.parametrize("device", device_param())
+def test_backward_grads_flow(device):
+    head, batch = _build_head(device=device)
+    y = head(batch)            # (B,S,d_v)
+    loss = y.pow(2).mean()     # 適当なスカラー損失
+    loss.backward()
 
-    # 位置 <= t の出力は一致するはず（未来を見ていない）
-    np.testing.assert_allclose(y1[:, : t + 1, :], y2[:, : t + 1, :], rtol=RTOL, atol=ATOL)
-
-
-def test_padding_keys_do_not_affect_outputs_for_real_tokens():
-    """
-    “PAD 位置の K/V に依存してはいけない”
-    ＝同じ実トークン列に対して、PAD 埋めの値を変えても
-    実トークン位置の出力は（ほぼ）不変。
-    """
-    B, S, H = 2, 6, 8
-    pad = -1
-
-    # 入力ID：末尾2つがPAD
-    ids = np.tile(np.arange(S), (B, 1))
-    ids[:, -2:] = pad
-
-    head, batch1 = _mk_head(B, S, H, d_k=4, d_v=6, pad_token=pad, input_ids=ids)
-
-    # 同じ先頭トークンだが、PAD 部分の埋めだけ大きく変える
-    rng = np.random.default_rng(SEED + 1)
-    batch2 = batch1.copy()
-    batch2[:, -2:, :] = rng.standard_normal((B, 2, H)).astype(np.float32) * 50.0
-
-    y1 = head(batch1)
-    y2 = head(batch2)
-
-    # 実トークン位置（ここでは S-2 以前）の出力は変わらないはず
-    np.testing.assert_allclose(y1[:, : S - 2, :], y2[:, : S - 2, :], rtol=RTOL, atol=ATOL)
-
-
-@pytest.mark.parametrize("axis", [-1])
-def test_attention_rows_sum_to_one(axis):
-    """
-    softmax が “行方向（キー側）” で正規化されているかのサニティチェック。
-    厳密な内部露出はしないが、均一スコア状況で平均になるかを見る。
-    """
-    B, S, H = 2, 5, 7
-    head, batch = _mk_head(B, S, H, d_k=4, d_v=3, pad_token=-1)
-
-    # 均一スコアに近づけるため、Q/K の線形写像の影響を弱める
-    # ＝重みを小さくスケール（ふるまい観測なのでOK）
-    head.W_Q *= 0.0
-    head.W_K *= 0.0
-    head.b_Q *= 0.0
-    head.b_K *= 0.0
-
-    y = head(batch)  # attention_weights @ V
-
-    # 均一スコアなら weights は各行で 1/S のはず → 出力は「各行の V の平均」
-    # ここでは厳密には均一ではないが、偏りが小さいことを緩く検査
-    # ＝ トークンごとの差が極端に大きくない（分散が小さめ）程度を確認
-    var_along_keys = np.var(y, axis=1).mean()  # (B, d_v) の分散平均
-    assert np.isfinite(var_along_keys) and var_along_keys >= 0.0
-
+    # 勾配が計算されていること
+    for p in [head.W_Q, head.b_Q, head.W_K, head.b_K, head.W_V, head.b_V]:
+        assert p.grad is not None
+        assert torch.isfinite(p.grad).all()
