@@ -13,7 +13,7 @@ def make_padding_mask(input_ids: torch.Tensor, pad_token: int) -> torch.Tensor:
     mask = input_ids == pad_token
     return torch.where(mask, float("-inf"), torch.tensor(0.0))
 
-class CausalSelfAttentionHead:
+class SingleHeadAttention:
     input_ids: torch.Tensor # (B, S)
     pad_token: int
 

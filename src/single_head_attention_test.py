@@ -2,7 +2,7 @@ import math
 import torch
 import pytest
 
-from .causal_self_attention_head import make_causal_mask, make_padding_mask, CausalSelfAttentionHead
+from .single_head_attention import make_causal_mask, make_padding_mask, SingleHeadAttention
 
 torch.manual_seed(0)
 
@@ -34,7 +34,7 @@ def test_make_padding_mask(device):
     assert torch.equal(torch.nan_to_num(m, nan=0.0), torch.nan_to_num(expect, nan=0.0))
 
 def _build_head(B=2, S=4, H=8, d_k=4, d_v=6, device="cpu"):
-    head = CausalSelfAttentionHead()
+    head = SingleHeadAttention()
     head.d_k = d_k
     head.pad_token = 0
     # 入力 ID（各バッチで末尾を pad）
