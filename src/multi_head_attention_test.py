@@ -82,7 +82,6 @@ def test_dv_not_equal_dk_supported():
 def test_backward_grads_exist():
     m, x, input_ids = make_model_and_inputs(B=2, S=5, H=16, h=4, d_k=4, d_v=4,
                                             dtype=torch.float32)
-
     # 勾配計算
     x.requires_grad_(True)
     y = m(x, input_ids)

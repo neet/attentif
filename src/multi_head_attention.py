@@ -41,13 +41,13 @@ class MultiHeadAttention(nn.Module):
 
         self.W_Q = nn.Parameter(torch.empty(self.H, h * d_k))
         self.W_K = nn.Parameter(torch.empty(self.H, h * d_k))
-        self.W_V = nn.Parameter(torch.empty(self.H, h * d_k))
+        self.W_V = nn.Parameter(torch.empty(self.H, h * d_v))
 
         self.b_Q = nn.Parameter(torch.zeros(h * d_k))
         self.b_K = nn.Parameter(torch.zeros(h * d_k))
-        self.b_V = nn.Parameter(torch.zeros(h * d_k))
+        self.b_V = nn.Parameter(torch.zeros(h * d_v))
 
-        self.W_O = nn.Parameter(torch.empty(h * d_k, self.H))
+        self.W_O = nn.Parameter(torch.empty(h * d_v, self.H))
         self.b_O = nn.Parameter(torch.empty(self.H))
 
         self._reset_parameters()
