@@ -53,7 +53,6 @@ class MultiHeadAttention(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
-        # Xavier初期化など好きな方式でOK
         for param in [self.W_Q, self.W_K, self.W_V, self.W_O]:
             nn.init.xavier_uniform_(param)
 
