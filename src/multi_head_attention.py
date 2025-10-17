@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import math
 
+from .softmax import softmax
+
 # S -> (S, S)
 def make_causal_mask(seq_len: int, dtype: torch.dtype, device: torch.device) -> torch.Tensor:
     x = torch.arange(seq_len)
@@ -87,7 +89,7 @@ class MultiHeadAttention(nn.Module):
             # (B, S, S)
             scores = Q @ K.mT / math.sqrt(self.d_k)
             # (B, S, S)
-            attention_weights = torch.softmax(scores + mask, dim=-1)
+            attention_weights = softmax(scores + mask, dim=-1)
             # (B, S, d_v)
             output = attention_weights @ V
 
