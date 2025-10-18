@@ -2,14 +2,8 @@ import torch
 import torch.nn as nn
 from typing import Optional
 
-def relu(x: torch.Tensor) -> torch.Tensor:
-    return torch.where(x > 0, x, torch.zeros_like(x))
-
-def dropout(x: torch.Tensor, p: float = 0.1, training: bool = True) -> torch.Tensor:
-    if not training or p == 0.0:
-        return x
-    mask = (torch.rand_like(x) > p).float()
-    return x * mask / (1.0 - p)
+from .dropout import dropout
+from .relu import relu
 
 class FeedForwardNetwork(nn.Module):
     def __init__(self, H: int, d_ff: Optional[int] = None, p_dropout: float = 0.1):
