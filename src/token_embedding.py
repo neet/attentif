@@ -4,12 +4,12 @@ import torch.nn as nn
 from typing import Optional
 
 class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size: int, H: int, pad_token: Optional[int] = None):
+    def __init__(self, vocab_size: int, H: int, pad_token_id: Optional[int] = None):
         super().__init__()
 
         self.H = H
         self.E = nn.Parameter(torch.empty(vocab_size, H))
-        self.pad_token = pad_token
+        self.pad_token_id = pad_token_id
 
         self._reset_parameters()
 
@@ -20,8 +20,8 @@ class TokenEmbedding(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y =  self.E[x] * (self.H ** 0.5)
 
-        if self.pad_token is not None:
-            y = y.masked_fill((x == self.pad_token).unsqueeze(-1), 0.0)
+        if self.pad_token_id is not None:
+            y = y.masked_fill((x == self.pad_token_id).unsqueeze(-1), 0.0)
 
         return y
 

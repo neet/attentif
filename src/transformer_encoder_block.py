@@ -22,7 +22,14 @@ class TransformerEncoderBlock(nn.Module):
 
     # (B, S, H) -> (B, S, H)
     def forward(self, x: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        y = x + dropout(self.mha(self.ln1(x), attention_mask=attention_mask), training=self.training)
-        z = y + dropout(self.ffn(self.ln2(y)), training=self.training)
+        x_ln = self.ln1(x)
+        x_mha = self.mha(x_ln, attention_mask=attention_mask)
+
+        y = x + dropout(x_mha, training=self.training)
+        y_ln = self.ln2(y)
+        y_ffn = self.ffn(y_ln)
+
+        z = y + dropout(y_ffn, training=self.training)
+
         return z
 
