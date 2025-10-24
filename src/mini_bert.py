@@ -29,7 +29,6 @@ class MiniBert(nn.Module):
     def forward(self, batch) -> None:
         # (B, S, H) + (S, H)
         input = self.token_embedding(batch) + positional_encoding(batch.shape[-1], self.H)
-
         return self.transformer_encoder(input)
 
 if __name__ == "__main__":
