@@ -9,6 +9,7 @@ description = "A toy implementation of ”Attention Is All You Need”"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "datasets>=4.3.0",
     "jaxtyping>=0.3.3",
     "numpy>=2.3.3",
     "protobuf>=6.33.0",
