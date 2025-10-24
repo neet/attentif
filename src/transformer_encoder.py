@@ -21,9 +21,8 @@ class TransformerEncoder(nn.Module):
     def forward(self, batch: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         out = batch
 
-        for (index, block) in enumerate(self.blocks):
+        for block in self.blocks:
             out = block(out, attention_mask)
-            print(f"#{index}", out)
 
         return self.ln(out)
 

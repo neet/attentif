@@ -103,7 +103,7 @@ def test_norm_scales_with_sqrtH_expectation():
 PAD = 0
 
 def make_module_with_pad():
-    m = TokenEmbedding(vocab_size=V, H=H, pad_token=PAD)
+    m = TokenEmbedding(vocab_size=V, H=H, pad_token_id=PAD)
     with torch.no_grad():
         torch.manual_seed(777)
         m.E.copy_(torch.randn(V, H))
