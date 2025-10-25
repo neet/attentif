@@ -1,5 +1,4 @@
 import torch
-from tqdm import tqdm
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from transformers import RobertaTokenizer, DataCollatorForLanguageModeling
@@ -50,8 +49,7 @@ class MaskedLM(nn.Module):
         return self.lm_head(output)
 
 def train() -> None:
-    dataset = load_dataset("allenai/c4", "realnewslike", split="train")
-    dataset = dataset.select(range(1000))
+    dataset = load_dataset("allenai/c4", "realnewslike", split="train[:1000]")
     tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
 
     dataset = dataset.map(
@@ -64,16 +62,26 @@ def train() -> None:
         batched=True,
     )
     model = MaskedLM(tokenizer.vocab_size, tokenizer.pad_token_id)
+    model.train()
 
     collator = DataCollatorForLanguageModeling(tokenizer)
     batches = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collator)
 
-    output: torch.Tensor
+    criterion = nn.CrossEntropyLoss(ignore_index=-100)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-4)
 
-    for batch in tqdm(batches, desc="バッチ処理を実行中"):
-        output = model(batch["input_ids"], batch["attention_mask"])
+    running_loss = 0.0
+    for (step, batch) in enumerate(batches):
+        logits = model(batch["input_ids"], batch["attention_mask"])
+        loss = criterion(logits.view(-1, logits.size(-1)), batch["labels"].view(-1))
 
-    print(output)
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+
+        running_loss += loss.item()
+        print(f"step {step}, loss {running_loss / (step+1):.4f}")
 
 if __name__ == "__main__":
     train()
