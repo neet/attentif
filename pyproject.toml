@@ -14,6 +14,7 @@ dependencies = [
     "numpy>=2.3.3",
     "protobuf>=6.33.0",
     "torch>=2.8.0",
+    "tqdm>=4.67.1",
     "transformers>=4.57.1",
 ]
 

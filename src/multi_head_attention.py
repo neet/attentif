@@ -63,7 +63,6 @@ class MultiHeadAttention(nn.Module):
             scores = Q @ K.mT / math.sqrt(self.d_k)
 
             if attention_mask is not None:
-                print(scores)
                 scores = scores + attention_mask
 
             # (B, S, S)
