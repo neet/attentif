@@ -9,17 +9,14 @@ from .token_embedding import TokenEmbedding
 from .positional_encoding import positional_encoding
 
 class LMHead(nn.Module):
-    def __init__(self, H: int, V: int) -> None:
+    def __init__(self, E: torch.Tensor) -> None:
         super().__init__()
-        self.W = nn.Parameter(torch.empty(H, V))
-        self.b = nn.Parameter(torch.zeros(V))
-        self._reset_parameters()
+        self.E = E # (V, H)
+        self.b = nn.Parameter(torch.zeros(E.shape[0]))
 
-    def _reset_parameters(self):
-        nn.init.xavier_uniform_(self.W)
-
-    def forward(self, batch: torch.Tensor) -> torch.Tensor:
-        return batch @ self.W + self.b
+    # (B, S, H) -> (B, S)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x @ self.E.mT + self.b
 
 class MaskedLM(nn.Module):
     def __init__(
@@ -35,9 +32,15 @@ class MaskedLM(nn.Module):
 
         self.V = V
         self.pad_token_id = pad_token_id
+        self.E = nn.Parameter(torch.empty(self.V, self.H))
         self.transformer_encoder = TransformerEncoder(self.H, self.h, self.n_transformer_blocks)
-        self.token_embedding = TokenEmbedding(self.V, self.H, self.pad_token_id)
-        self.lm_head = LMHead(self.H, self.V)
+        self.token_embedding = TokenEmbedding(self.E, self.pad_token_id)
+        self.lm_head = LMHead(self.E)
+
+        self._reset_parameters()
+
+    def _reset_parameters(self):
+        nn.init.xavier_uniform_(self.E)
 
     def forward(self, batch: torch.Tensor, attention_mask: torch.Tensor) -> None:
         attention_mask = attention_mask.unsqueeze(1)
