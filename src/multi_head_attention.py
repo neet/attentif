@@ -28,7 +28,7 @@ class MultiHeadAttention(nn.Module):
         self.b_V = nn.Parameter(torch.zeros(h * d_v))
 
         self.W_O = nn.Parameter(torch.empty(h * d_v, self.H))
-        self.b_O = nn.Parameter(torch.empty(self.H))
+        self.b_O = nn.Parameter(torch.zeros(self.H))
 
         self._reset_parameters()
 
