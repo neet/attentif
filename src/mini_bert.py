@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import math
 
 from .transformer_encoder import TransformerEncoder
 from .token_embedding import TokenEmbedding
@@ -15,7 +16,7 @@ class LMHead(nn.Module):
 
     # (B, S, H) -> (B, S, V)
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Weight tyingを使用し、TokenEmbeddingではスケーリングなし
+        # Weight tyingを使用。スケーリングはTokenEmbeddingのみで行う
         return x @ self.E.mT + self.b
 
 
@@ -59,10 +60,11 @@ class MaskedLM(nn.Module):
 
         # (B, S, H) + (S, H) -> (B, S, H)
         pe = positional_encoding(
-            batch.shape[-1], self.H, device=batch.device, dtype=batch.dtype
+            batch.shape[-1], self.H, device=batch.device, dtype=torch.float32
         )
         embeddings = self.token_embedding(batch)
-        input = embeddings + pe
+        # PEをembeddingと同じスケールに（std=0.02 → 約0.1の範囲）
+        input = embeddings + pe * 0.1
         output = self.transformer_encoder(input, attention_mask)
 
         return self.lm_head(output)
