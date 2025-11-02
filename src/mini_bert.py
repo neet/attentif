@@ -43,7 +43,7 @@ class MaskedLM(nn.Module):
         attention_mask = attention_mask.unsqueeze(1)
 
         # (B, S, H) + (S, H) -> (B, S, H)
-        input = self.token_embedding(batch) + positional_encoding(batch.shape[-1], self.H).to(batch.device)
+        input = self.token_embedding(batch) + positional_encoding(batch.shape[-1], self.H).to(batch.device, dtype=batch.dtype)
         output = self.transformer_encoder(input, attention_mask)
 
         return self.lm_head(output)
