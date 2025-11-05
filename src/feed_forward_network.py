@@ -29,7 +29,7 @@ class FeedForwardNetwork(nn.Module):
         y = x @ self.W1 + self.b1
         y = relu(y)
 
-        # (B, S, intermediate_size) -> (B, S, hideen_size)
+        # (B, S, intermediate_size) -> (B, S, hidden_size)
         y = y @ self.W2 + self.b2
 
         return y
