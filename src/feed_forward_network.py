@@ -25,7 +25,7 @@ class FeedForwardNetwork(nn.Module):
 
     # (B, S, hidden_size) -> (B, S, hidden_size)
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # (B, S, hideen_size) -> (B, S, intermediate_size)
+        # (B, S, hidden_size) -> (B, S, intermediate_size)
         y = x @ self.W1 + self.b1
         y = relu(y)
 
