@@ -13,7 +13,7 @@ class TransformerEncoderBlock(nn.Module):
     # vocab_size: 語彙サイズ
     def __init__(self, hidden_size: int, num_attention_heads: int) -> None:
         super().__init__()
-        assert hidden_size % num_attention_heads == 0, "H must be divisible by h"
+        assert hidden_size % num_attention_heads == 0, "hidden_size must be divisible by num_attention_heads"
         d = hidden_size // num_attention_heads
         self.ln1 = LayerNorm(hidden_size)
         self.ln2 = LayerNorm(hidden_size)
