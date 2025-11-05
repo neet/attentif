@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from typing import Optional
 
-from .dropout import dropout
 from .relu import relu
 
 class FeedForwardNetwork(nn.Module):
