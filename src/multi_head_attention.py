@@ -10,23 +10,23 @@ from .softmax import softmax
 # h: ヘッドの個数
 # d_*: 1つのヘッドが持つ隠れ状態の次元
 class MultiHeadAttention(nn.Module):
-    def __init__(self, h: int, d_k: int, d_v: int) -> None:
+    def __init__(self, num_attention_heads: int, d_k: int, d_v: int) -> None:
         super().__init__()
 
-        self.h = h
+        self.num_attention_heads = num_attention_heads
         self.d_k = d_k
         self.d_v = d_v
 
-        self.W_Q = nn.Parameter(torch.empty(h*d_k, h*d_k))
-        self.W_K = nn.Parameter(torch.empty(h*d_k, h*d_k))
-        self.W_V = nn.Parameter(torch.empty(h*d_k, h*d_v))
+        self.W_Q = nn.Parameter(torch.empty(num_attention_heads*d_k, num_attention_heads*d_k))
+        self.W_K = nn.Parameter(torch.empty(num_attention_heads*d_k, num_attention_heads*d_k))
+        self.W_V = nn.Parameter(torch.empty(num_attention_heads*d_k, num_attention_heads*d_v))
 
-        self.b_Q = nn.Parameter(torch.zeros(h*d_k))
-        self.b_K = nn.Parameter(torch.zeros(h*d_k))
-        self.b_V = nn.Parameter(torch.zeros(h*d_v))
+        self.b_Q = nn.Parameter(torch.zeros(num_attention_heads*d_k))
+        self.b_K = nn.Parameter(torch.zeros(num_attention_heads*d_k))
+        self.b_V = nn.Parameter(torch.zeros(num_attention_heads*d_v))
 
-        self.W_O = nn.Parameter(torch.empty(h*d_v, h*d_k))
-        self.b_O = nn.Parameter(torch.zeros(h*d_k))
+        self.W_O = nn.Parameter(torch.empty(num_attention_heads*d_v, num_attention_heads*d_k))
+        self.b_O = nn.Parameter(torch.zeros(num_attention_heads*d_k))
 
         self._reset_parameters()
 
@@ -44,9 +44,9 @@ class MultiHeadAttention(nn.Module):
         V = batch @ self.W_V + self.b_V
 
         # (B, S, h, d)
-        Q = Q.view(B, S, self.h, self.d_k)
-        K = K.view(B, S, self.h, self.d_k)
-        V = V.view(B, S, self.h, self.d_v)
+        Q = Q.view(B, S, self.num_attention_heads, self.d_k)
+        K = K.view(B, S, self.num_attention_heads, self.d_k)
+        V = V.view(B, S, self.num_attention_heads, self.d_v)
 
         # (B, h, S, d)
         Q = Q.permute(0, 2, 1, 3).contiguous()
@@ -70,7 +70,7 @@ class MultiHeadAttention(nn.Module):
         output = output.permute(0, 2, 1, 3).contiguous()
 
         # (B, S, h*d_v)
-        output = output.view(B, S, self.h*self.d_v)
+        output = output.view(B, S, self.num_attention_heads*self.d_v)
 
         # (B, S, h*d_v)
         output = output @ self.W_O + self.b_O

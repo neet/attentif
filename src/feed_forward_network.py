@@ -5,18 +5,17 @@ from typing import Optional
 from .relu import relu
 
 class FeedForwardNetwork(nn.Module):
-    def __init__(self, H: int, d_ff: Optional[int] = None, p_dropout: float = 0.1):
+    def __init__(self, hidden_size: int, intermediate_size: Optional[int] = None):
         super().__init__()
 
-        self.H = H
-        self.d_ff = d_ff or (4 * H)
-        self.p_dropout = p_dropout
+        self.hidden_size = hidden_size
+        self.intermediate_size = intermediate_size or (4 * hidden_size)
 
-        self.W1 = nn.Parameter(torch.empty(H, self.d_ff))
-        self.b1 = nn.Parameter(torch.zeros(self.d_ff))
+        self.W1 = nn.Parameter(torch.empty(hidden_size, self.intermediate_size))
+        self.b1 = nn.Parameter(torch.zeros(self.intermediate_size))
 
-        self.W2 = nn.Parameter(torch.empty(self.d_ff, H))
-        self.b2 = nn.Parameter(torch.zeros(H))
+        self.W2 = nn.Parameter(torch.empty(self.intermediate_size, hidden_size))
+        self.b2 = nn.Parameter(torch.zeros(hidden_size))
 
         self._reset_parameters()
 
@@ -24,13 +23,13 @@ class FeedForwardNetwork(nn.Module):
         torch.nn.init.xavier_uniform_(self.W1)
         torch.nn.init.xavier_uniform_(self.W2)
 
-    # (B, S, H) -> (B, S, H)
+    # (B, S, hidden_size) -> (B, S, hidden_size)
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # (B, S, H) -> (B, S, d_ff)
+        # (B, S, hideen_size) -> (B, S, intermediate_size)
         y = x @ self.W1 + self.b1
         y = relu(y)
 
-        # (B, S, d_ff) -> (B, S, H)
+        # (B, S, intermediate_size) -> (B, S, hideen_size)
         y = y @ self.W2 + self.b2
 
         return y

@@ -11,14 +11,14 @@ class TransformerEncoderBlock(nn.Module):
     # H: 隠れ次元
     # h: ヘッドの数
     # vocab_size: 語彙サイズ
-    def __init__(self, H: int, h: int) -> None:
+    def __init__(self, hidden_size: int, num_attention_heads: int) -> None:
         super().__init__()
-        assert H % h == 0, "H must be divisible by h"
-        d = H // h
-        self.ln1 = LayerNorm(H=H)
-        self.ln2 = LayerNorm(H=H)
-        self.mha = MultiHeadAttention(h=h, d_k=d, d_v=d)
-        self.ffn = FeedForwardNetwork(H=H)
+        assert hidden_size % num_attention_heads == 0, "H must be divisible by h"
+        d = hidden_size // num_attention_heads
+        self.ln1 = LayerNorm(hidden_size)
+        self.ln2 = LayerNorm(hidden_size)
+        self.mha = MultiHeadAttention(num_attention_heads, d_k=d, d_v=d)
+        self.ffn = FeedForwardNetwork(hidden_size)
 
     # (B, S, H) -> (B, S, H)
     def forward(self, x: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:

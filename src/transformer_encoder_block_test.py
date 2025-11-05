@@ -2,10 +2,10 @@ import torch
 
 from .transformer_encoder_block import TransformerEncoderBlock
 
-def _make_block_and_inputs(B=2, S=5, H=16, h=4, device="cpu", dtype=torch.float32, seed=0):
+def _make_block_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4, device="cpu", dtype=torch.float32, seed=0):
     torch.manual_seed(seed)
-    m = TransformerEncoderBlock(H=H, h=h).to(device)
-    x = torch.randn(B, S, H, dtype=dtype, device=device)
+    m = TransformerEncoderBlock(hidden_size, num_attention_heads).to(device)
+    x = torch.randn(batch_size, seq_len, hidden_size, dtype=dtype, device=device)
     return m, x
 
 def _zero_mask(B, S, dtype, device):
@@ -17,14 +17,14 @@ def _ban_last_k_columns(B, S, k, dtype, device):
     return mask
 
 def test_forward_shape_dtype_device_cpu():
-    m, x = _make_block_and_inputs(B=3, S=7, H=24, h=6, device="cpu", dtype=torch.float32)
+    m, x = _make_block_and_inputs(batch_size=3, seq_len=7, hidden_size=24, num_attention_heads=6, device="cpu", dtype=torch.float32)
     mask = _zero_mask(B=3, S=7, dtype=x.dtype, device=x.device)
     y = m(x, attention_mask=mask)
     assert y.shape == (3, 7, 24)
     assert y.dtype == x.dtype and y.device == x.device
 
 def test_attention_mask_actually_masks_keys():
-    m, x = _make_block_and_inputs(B=1, S=6, H=16, h=4, device="cpu", dtype=torch.float32)
+    m, x = _make_block_and_inputs(batch_size=1, seq_len=6, hidden_size=16, num_attention_heads=4, device="cpu", dtype=torch.float32)
     m.eval()  # dropout無効化で決定的にする
 
     zero = _zero_mask(1, 6, x.dtype, x.device)
@@ -50,7 +50,7 @@ def test_attention_mask_actually_masks_keys():
     assert not torch.allclose(y_ban_0[:, -2:, :], y_ban_1[:, -2:, :], atol=1e-5, rtol=1e-5)
 
 def test_eval_disables_dropout_deterministic():
-    m, x = _make_block_and_inputs(B=2, S=5, H=16, h=4, device="cpu", dtype=torch.float32, seed=123)
+    m, x = _make_block_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4, device="cpu", dtype=torch.float32, seed=123)
     mask = _zero_mask(2, 5, x.dtype, x.device)
 
     m.eval()
@@ -61,7 +61,7 @@ def test_eval_disables_dropout_deterministic():
     torch.testing.assert_close(y1, y2, atol=0.0, rtol=0.0)
 
 def test_backward_grads_exist():
-    m, x = _make_block_and_inputs(B=2, S=5, H=16, h=4, device="cpu", dtype=torch.float32)
+    m, x = _make_block_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4, device="cpu", dtype=torch.float32)
     mask = _zero_mask(2, 5, x.dtype, x.device)
 
     x.requires_grad_(True)
@@ -76,7 +76,7 @@ def test_backward_grads_exist():
         assert p.grad is not None, f"{name} has no grad"
 
 def test_none_mask_equals_zero_mask():
-    m, x = _make_block_and_inputs(B=2, S=5, H=16, h=4, device="cpu", dtype=torch.float32)
+    m, x = _make_block_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4, device="cpu", dtype=torch.float32)
     zero = _zero_mask(2, 5, x.dtype, x.device)
 
     m.eval()  # ← これが大事（dropout停止）
