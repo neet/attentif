@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from typing import Optional
 
-from .dropout import dropout
 from .relu import relu
 
 class FeedForwardNetwork(nn.Module):
@@ -30,11 +29,9 @@ class FeedForwardNetwork(nn.Module):
         # (B, S, H) -> (B, S, d_ff)
         y = x @ self.W1 + self.b1
         y = relu(y)
-        y = dropout(y, self.p_dropout, self.training)
 
         # (B, S, d_ff) -> (B, S, H)
         y = y @ self.W2 + self.b2
-        y = dropout(y, self.p_dropout, self.training)
 
         return y
 
