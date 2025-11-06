@@ -8,17 +8,17 @@ def _make_block_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attentio
     x = torch.randn(batch_size, seq_len, hidden_size, dtype=dtype, device=device)
     return m, x
 
-def _zero_mask(B, S, dtype, device):
-    return torch.zeros(B, S, S, dtype=dtype, device=device)
+def _zero_mask(batch_size, seq_len, dtype, device):
+    return torch.zeros(batch_size, seq_len, seq_len, dtype=dtype, device=device)
 
-def _ban_last_k_columns(B, S, k, dtype, device):
-    mask = torch.zeros(B, S, S, dtype=dtype, device=device)
+def _ban_last_k_columns(batch_size, seq_len, k, dtype, device):
+    mask = torch.zeros(batch_size, seq_len, seq_len, dtype=dtype, device=device)
     mask[..., -k:] = float("-inf")  # key側の末尾k列を全面禁止
     return mask
 
 def test_forward_shape_dtype_device_cpu():
     m, x = _make_block_and_inputs(batch_size=3, seq_len=7, hidden_size=24, num_attention_heads=6, device="cpu", dtype=torch.float32)
-    mask = _zero_mask(B=3, S=7, dtype=x.dtype, device=x.device)
+    mask = _zero_mask(batch_size=3, seq_len=7, dtype=x.dtype, device=x.device)
     y = m(x, attention_mask=mask)
     assert y.shape == (3, 7, 24)
     assert y.dtype == x.dtype and y.device == x.device
@@ -51,7 +51,7 @@ def test_attention_mask_actually_masks_keys():
 
 def test_eval_disables_dropout_deterministic():
     m, x = _make_block_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4, device="cpu", dtype=torch.float32, seed=123)
-    mask = _zero_mask(2, 5, x.dtype, x.device)
+    mask = _zero_mask(batch_size=2, seq_len=5, dtype=x.dtype, device=x.device)
 
     m.eval()
     with torch.no_grad():
@@ -62,7 +62,7 @@ def test_eval_disables_dropout_deterministic():
 
 def test_backward_grads_exist():
     m, x = _make_block_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4, device="cpu", dtype=torch.float32)
-    mask = _zero_mask(2, 5, x.dtype, x.device)
+    mask = _zero_mask(batch_size=2, seq_len=5, dtype=x.dtype, device=x.device)
 
     x.requires_grad_(True)
     y = m(x, attention_mask=mask)
@@ -77,7 +77,7 @@ def test_backward_grads_exist():
 
 def test_none_mask_equals_zero_mask():
     m, x = _make_block_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4, device="cpu", dtype=torch.float32)
-    zero = _zero_mask(2, 5, x.dtype, x.device)
+    zero = _zero_mask(batch_size=2, seq_len=5, dtype=x.dtype, device=x.device)
 
     m.eval()  # ← これが大事（dropout停止）
     with torch.no_grad():

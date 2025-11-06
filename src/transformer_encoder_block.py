@@ -14,10 +14,9 @@ class TransformerEncoderBlock(nn.Module):
     def __init__(self, hidden_size: int, num_attention_heads: int) -> None:
         super().__init__()
         assert hidden_size % num_attention_heads == 0, "hidden_size must be divisible by num_attention_heads"
-        d = hidden_size // num_attention_heads
         self.ln1 = LayerNorm(hidden_size)
         self.ln2 = LayerNorm(hidden_size)
-        self.mha = MultiHeadAttention(num_attention_heads, d_k=d, d_v=d)
+        self.mha = MultiHeadAttention(hidden_size=hidden_size, num_attention_heads=num_attention_heads)
         self.ffn = FeedForwardNetwork(hidden_size)
 
     # (B, S, H) -> (B, S, H)

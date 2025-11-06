@@ -3,15 +3,15 @@ import torch.nn as nn
 
 from .transformer_encoder import TransformerEncoder
 
-def _make_x(B=2, S=5, H=16, device="cpu", dtype=torch.float32):
+def _make_x(batch_size=2, seq_len=5, hidden_size=16, device="cpu", dtype=torch.float32):
     torch.manual_seed(0)
-    return torch.randn(B, S, H, device=device, dtype=dtype)
+    return torch.randn(batch_size, seq_len, hidden_size, device=device, dtype=dtype)
 
 def test_forward_shape_and_registration():
-    H, h, n = 16, 4, 3
-    m = TransformerEncoder(H, h, n)
+    hidden_size, num_attention_heads, num_blocks = 16, 4, 3
+    m = TransformerEncoder(hidden_size, num_attention_heads, num_blocks)
 
-    x = _make_x(H=H)
+    x = _make_x(hidden_size=hidden_size)
     y = m(x)
 
     # 形は保存される
@@ -19,14 +19,14 @@ def test_forward_shape_and_registration():
 
     # サブモジュールが正しく登録されている（ModuleList/長さ/パラメータ数）
     assert isinstance(m.blocks, nn.ModuleList)
-    assert len(m.blocks) == n
+    assert len(m.blocks) == num_blocks
     assert sum(p.numel() for p in m.parameters()) > 0
 
 def test_backward_produces_grads():
-    H, h, n = 16, 4, 2
-    m = TransformerEncoder(H, h, n)
+    hidden_size, num_attention_heads, num_blocks = 16, 4, 2
+    m = TransformerEncoder(hidden_size, num_attention_heads, num_blocks)
 
-    x = _make_x(H=H).requires_grad_()
+    x = _make_x(hidden_size=hidden_size).requires_grad_()
     y = m(x)
     loss = y.sum()
     loss.backward()
@@ -35,10 +35,10 @@ def test_backward_produces_grads():
     assert any(p.grad is not None for p in m.parameters())
 
 def test_eval_mode_noerror():
-    H, h, n = 16, 4, 1
-    m = TransformerEncoder(H, h, n).eval()
+    hidden_size, num_attention_heads, num_blocks = 16, 4, 1
+    m = TransformerEncoder(hidden_size, num_attention_heads, num_blocks).eval()
 
-    x = _make_x(H=H)
+    x = _make_x(hidden_size=hidden_size)
     with torch.no_grad():
         y = m(x)
 
