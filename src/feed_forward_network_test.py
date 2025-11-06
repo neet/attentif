@@ -3,54 +3,29 @@ import pytest
 
 from .feed_forward_network import FeedForwardNetwork
 
-@pytest.mark.parametrize("B,S,H,d_ff", [(2, 5, 8, 32), (1, 1, 16, 64)])
-def test_ffn_output_shape(B, S, H, d_ff):
-    x = torch.randn(B, S, H)
-    ffn = FeedForwardNetwork(H=H, d_ff=d_ff, p_dropout=0.0).eval()
+@pytest.mark.parametrize("B,S,hidden_size,intermediate_size", [(2, 5, 8, 32), (1, 1, 16, 64)])
+def test_ffn_output_shape(B, S, hidden_size, intermediate_size):
+    x = torch.randn(B, S, hidden_size)
+    ffn = FeedForwardNetwork(hidden_size=hidden_size, intermediate_size=intermediate_size).eval()
     y = ffn(x)
-    assert y.shape == (B, S, H)
+    assert y.shape == (B, S, hidden_size)
 
 def test_ffn_position_wise_independence():
-    B, S, H, d_ff = 1, 6, 12, 48
-    x = torch.randn(B, S, H)
-    x[:, 1, :] = torch.randn(H)          # pos=1 と pos=4 を同一ベクトルに
+    B, S, hidden_size, intermediate_size = 1, 6, 12, 48
+    x = torch.randn(B, S, hidden_size)
+    x[:, 1, :] = torch.randn(hidden_size)          # pos=1 と pos=4 を同一ベクトルに
     x[:, 4, :] = x[:, 1, :].clone()
 
-    ffn = FeedForwardNetwork(H=H, d_ff=d_ff, p_dropout=0.0).eval()
+    ffn = FeedForwardNetwork(hidden_size=hidden_size, intermediate_size=intermediate_size).eval()
     y = ffn(x)
 
     # 同一入力 → 同一出力（FFNは各位置を独立に処理）
     assert torch.allclose(y[:, 1, :], y[:, 4, :], atol=1e-6)
 
-def test_ffn_dropout_training_changes_output():
-    B, S, H, d_ff = 2, 5, 8, 32
-    x = torch.randn(B, S, H)
-    ffn = FeedForwardNetwork(H=H, d_ff=d_ff, p_dropout=0.5).train()
-
-    torch.manual_seed(0)
-    y1 = ffn(x)
-    torch.manual_seed(1)
-    y2 = ffn(x)
-
-    # 異なる乱数 → 異なるdropout mask → 出力は（ほぼ確実に）異なる
-    assert not torch.allclose(y1, y2)
-
-def test_ffn_dropout_eval_is_disabled():
-    B, S, H, d_ff = 2, 5, 8, 32
-    x = torch.randn(B, S, H)
-    ffn = FeedForwardNetwork(H=H, d_ff=d_ff, p_dropout=0.7).eval()
-
-    # eval() ではdropoutが無効 → 乱数に依らず同一出力
-    torch.manual_seed(0)
-    y1 = ffn(x)
-    torch.manual_seed(1)
-    y2 = ffn(x)
-    assert torch.allclose(y1, y2, atol=0.0)
-
 def test_ffn_train_vs_eval_same_when_p0():
-    B, S, H, d_ff = 2, 5, 8, 32
-    x = torch.randn(B, S, H)
-    ffn = FeedForwardNetwork(H=H, d_ff=d_ff, p_dropout=0.0)
+    B, S, hidden_size, intermediate_size = 2, 5, 8, 32
+    x = torch.randn(B, S, hidden_size)
+    ffn = FeedForwardNetwork(hidden_size=hidden_size, intermediate_size=intermediate_size)
 
     ffn.train()
     y_train = ffn(x)
@@ -61,9 +36,9 @@ def test_ffn_train_vs_eval_same_when_p0():
     assert torch.allclose(y_train, y_eval, atol=0.0)
 
 def test_ffn_backward_gradients_exist_and_finite():
-    B, S, H, d_ff = 3, 7, 16, 64
-    x = torch.randn(B, S, H)
-    ffn = FeedForwardNetwork(H=H, d_ff=d_ff, p_dropout=0.0).train()
+    B, S, hidden_size, intermediate_size = 3, 7, 16, 64
+    x = torch.randn(B, S, hidden_size)
+    ffn = FeedForwardNetwork(hidden_size=hidden_size, intermediate_size=intermediate_size).train()
 
     y = ffn(x)
     loss = y.pow(2).mean()
@@ -76,10 +51,10 @@ def test_ffn_backward_gradients_exist_and_finite():
 
 def test_ffn_is_deterministic_in_eval_mode_with_fixed_weights():
     # 同じ入力・同じ重み・eval → 同一出力
-    B, S, H, d_ff = 2, 4, 10, 40
-    x = torch.randn(B, S, H)
+    B, S, hidden_size, intermediate_size = 2, 4, 10, 40
+    x = torch.randn(B, S, hidden_size)
 
-    ffn = FeedForwardNetwork(H=H, d_ff=d_ff, p_dropout=0.5).eval()
+    ffn = FeedForwardNetwork(hidden_size=hidden_size, intermediate_size=intermediate_size).eval()
 
     # 重みを固定してから2回実行
     with torch.no_grad():

@@ -10,23 +10,23 @@ from .softmax import softmax
 # h: ヘッドの個数
 # d_*: 1つのヘッドが持つ隠れ状態の次元
 class MultiHeadAttention(nn.Module):
-    def __init__(self, h: int, d_k: int, d_v: int) -> None:
+    def __init__(self, hidden_size: int, num_attention_heads: int) -> None:
         super().__init__()
 
-        self.h = h
-        self.d_k = d_k
-        self.d_v = d_v
+        self.hidden_size = hidden_size
+        self.num_attention_heads = num_attention_heads
+        self.attention_head_size = hidden_size // num_attention_heads
 
-        self.W_Q = nn.Parameter(torch.empty(h*d_k, h*d_k))
-        self.W_K = nn.Parameter(torch.empty(h*d_k, h*d_k))
-        self.W_V = nn.Parameter(torch.empty(h*d_k, h*d_v))
+        self.W_Q = nn.Parameter(torch.empty(hidden_size, hidden_size))
+        self.W_K = nn.Parameter(torch.empty(hidden_size, hidden_size))
+        self.W_V = nn.Parameter(torch.empty(hidden_size, hidden_size))
 
-        self.b_Q = nn.Parameter(torch.zeros(h*d_k))
-        self.b_K = nn.Parameter(torch.zeros(h*d_k))
-        self.b_V = nn.Parameter(torch.zeros(h*d_v))
+        self.b_Q = nn.Parameter(torch.zeros(hidden_size))
+        self.b_K = nn.Parameter(torch.zeros(hidden_size))
+        self.b_V = nn.Parameter(torch.zeros(hidden_size))
 
-        self.W_O = nn.Parameter(torch.empty(h*d_v, h*d_k))
-        self.b_O = nn.Parameter(torch.zeros(h*d_k))
+        self.W_O = nn.Parameter(torch.empty(hidden_size, hidden_size))
+        self.b_O = nn.Parameter(torch.zeros(hidden_size))
 
         self._reset_parameters()
 
@@ -36,7 +36,8 @@ class MultiHeadAttention(nn.Module):
 
     # f: (B, S, h*d_k) -> (B, S, S) -> (B, S, h*d_v)
     def forward(self, batch: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        B, S, _ = batch.shape
+        batch_size, seq_len, hidden_size = batch.shape
+        assert hidden_size == self.hidden_size
 
         # (B, S, h*d)
         Q = batch @ self.W_Q + self.b_Q
@@ -44,9 +45,9 @@ class MultiHeadAttention(nn.Module):
         V = batch @ self.W_V + self.b_V
 
         # (B, S, h, d)
-        Q = Q.view(B, S, self.h, self.d_k)
-        K = K.view(B, S, self.h, self.d_k)
-        V = V.view(B, S, self.h, self.d_v)
+        Q = Q.view(batch_size, seq_len, self.num_attention_heads, self.attention_head_size)
+        K = K.view(batch_size, seq_len, self.num_attention_heads, self.attention_head_size)
+        V = V.view(batch_size, seq_len, self.num_attention_heads, self.attention_head_size)
 
         # (B, h, S, d)
         Q = Q.permute(0, 2, 1, 3).contiguous()
@@ -54,7 +55,7 @@ class MultiHeadAttention(nn.Module):
         V = V.permute(0, 2, 1, 3).contiguous()
 
         # (B, h, S, S)
-        scores = Q @ K.mT / math.sqrt(self.d_k)
+        scores = Q @ K.mT / math.sqrt(self.attention_head_size)
 
         if attention_mask is not None:
             # (B, h, S, S) + (B, 1, S, S)
@@ -70,7 +71,7 @@ class MultiHeadAttention(nn.Module):
         output = output.permute(0, 2, 1, 3).contiguous()
 
         # (B, S, h*d_v)
-        output = output.view(B, S, self.h*self.d_v)
+        output = output.view(batch_size, seq_len, self.num_attention_heads * self.attention_head_size)
 
         # (B, S, h*d_v)
         output = output @ self.W_O + self.b_O

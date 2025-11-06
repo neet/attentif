@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 
 class LayerNorm(nn.Module):
-    def __init__(self, H: int, eps: float = 1e-5):
+    def __init__(self, dim: int, eps: float = 1e-5):
         super().__init__()
-        self.gamma = nn.Parameter(torch.ones(H))
-        self.beta = nn.Parameter(torch.zeros(H))
+        self.gamma = nn.Parameter(torch.ones(dim))
+        self.beta = nn.Parameter(torch.zeros(dim))
         self.eps = eps
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

@@ -6,19 +6,19 @@ from .mask_causal import make_causal_mask
 
 
 def make_model_and_inputs(
-    *, B=2, S=5, H=16, h=4, d_k=4, d_v=4, device="cpu", dtype=torch.float32, seed=0
+    *, batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4, device="cpu", dtype=torch.float32, seed=0
 ):
     """
     NOTE: pad_token_id は MultiHeadAttention 側には渡さない。
     テスト内で pad_token_id=0 前提の padding mask を合成する。
+    d_k と d_v は hidden_size // num_attention_heads として自動的に導出される。
     """
-    assert H == h * d_k, "H must equal h * d_k"
     torch.manual_seed(seed)
 
-    m = MultiHeadAttention(h=h, d_k=d_k, d_v=d_v).to(device)
-    x = torch.randn(B, S, H, device=device, dtype=dtype)
+    m = MultiHeadAttention(hidden_size=hidden_size, num_attention_heads=num_attention_heads).to(device)
+    x = torch.randn(batch_size, seq_len, hidden_size, device=device, dtype=dtype)
     # ランダム input_ids は [1, 49] で生成（0 は pad 扱いにするため除外）
-    input_ids = torch.randint(1, 50, (B, S), device=device)
+    input_ids = torch.randint(1, 50, (batch_size, seq_len), device=device)
     return m, x, input_ids
 
 
@@ -36,7 +36,7 @@ def _full_mask(
 
 
 def test_forward_shape_and_dtype_device():
-    m, x, input_ids = make_model_and_inputs(B=3, S=7, H=24, h=6, d_k=4, d_v=4,
+    m, x, input_ids = make_model_and_inputs(batch_size=3, seq_len=7, hidden_size=24, num_attention_heads=6,
                                             device="cpu", dtype=torch.float32)
     pad = 0
     mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)
@@ -45,7 +45,7 @@ def test_forward_shape_and_dtype_device():
     assert y.dtype == x.dtype and y.device == x.device
 
 def test_none_mask_equals_zero_mask():
-    m, x, _ = make_model_and_inputs(B=2, S=5, H=16, h=4, d_k=4, d_v=4,
+    m, x, _ = make_model_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4,
                                     device="cpu", dtype=torch.float32)
     B, S, _H = x.shape
     zero = torch.zeros(B, S, S, dtype=x.dtype, device=x.device)
@@ -55,7 +55,7 @@ def test_none_mask_equals_zero_mask():
 
 
 def test_padding_positions_do_not_affect_nonpad_queries():
-    m, x, input_ids = make_model_and_inputs(B=1, S=6, H=16, h=4, d_k=4, d_v=4,
+    m, x, input_ids = make_model_and_inputs(batch_size=1, seq_len=6, hidden_size=16, num_attention_heads=4,
                                             device="cpu")
     pad = 0
     mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)
@@ -70,7 +70,7 @@ def test_padding_positions_do_not_affect_nonpad_queries():
 
 
 def test_causal_mask_blocks_future_information():
-    m, x, input_ids = make_model_and_inputs(B=1, S=6, H=16, h=4, d_k=4, d_v=4,
+    m, x, input_ids = make_model_and_inputs(batch_size=1, seq_len=6, hidden_size=16, num_attention_heads=4,
                                             device="cpu")
     pad = 0
     mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)
@@ -86,7 +86,7 @@ def test_causal_mask_blocks_future_information():
 
 
 def test_output_projection_zero_makes_zero_output():
-    m, x, input_ids = make_model_and_inputs(B=2, S=5, H=16, h=4, d_k=4, d_v=4)
+    m, x, input_ids = make_model_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4)
     pad = 0
     mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)
 
@@ -98,15 +98,8 @@ def test_output_projection_zero_makes_zero_output():
     assert torch.allclose(y, torch.zeros_like(y), atol=1e-6)
 
 
-def test_dv_not_equal_dk_supported():
-    m, x, input_ids = make_model_and_inputs(B=2, S=5, H=16, h=4, d_k=4, d_v=8)
-    pad = 0
-    mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)
-    y = m(x, mask)
-    assert y.shape == (2, 5, 16)
-
 def test_backward_grads_exist():
-    m, x, input_ids = make_model_and_inputs(B=2, S=5, H=16, h=4, d_k=4, d_v=4,
+    m, x, input_ids = make_model_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4,
                                             dtype=torch.float32)
     pad = 0
     mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)

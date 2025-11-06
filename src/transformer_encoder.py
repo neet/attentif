@@ -10,13 +10,13 @@ class TransformerEncoder(nn.Module):
     blocks: nn.ModuleList
     ln: LayerNorm
 
-    def __init__(self, H: int, h: int, n_transformer_blocks: int):
+    def __init__(self, hidden_size: int, num_attention_heads: int, num_hidden_layers: int):
         super().__init__()
         self.blocks = nn.ModuleList([
-            TransformerEncoderBlock(H, h)
-            for _ in range(0, n_transformer_blocks)
+            TransformerEncoderBlock(hidden_size, num_attention_heads)
+            for _ in range(0, num_hidden_layers)
         ])
-        self.ln = LayerNorm(H)
+        self.ln = LayerNorm(hidden_size)
 
     def forward(self, batch: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         out = batch
