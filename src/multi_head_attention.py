@@ -4,18 +4,20 @@ import math
 from typing import Optional
 
 from .softmax import softmax
+from .dropout import dropout
 
 # B: バッチサイズ
 # S: トークンの最大長
 # h: ヘッドの個数
 # d_*: 1つのヘッドが持つ隠れ状態の次元
 class MultiHeadAttention(nn.Module):
-    def __init__(self, hidden_size: int, num_attention_heads: int) -> None:
+    def __init__(self, hidden_size: int, num_attention_heads: int, attention_probs_dropout_prob: float = 0.1) -> None:
         super().__init__()
 
         self.hidden_size = hidden_size
         self.num_attention_heads = num_attention_heads
         self.attention_head_size = hidden_size // num_attention_heads
+        self.attention_probs_dropout_prob = attention_probs_dropout_prob
 
         self.W_Q = nn.Parameter(torch.empty(hidden_size, hidden_size))
         self.W_K = nn.Parameter(torch.empty(hidden_size, hidden_size))
@@ -63,6 +65,7 @@ class MultiHeadAttention(nn.Module):
 
         # (B, h, S, S)
         attention_weights = softmax(scores, dim=-1)
+        attention_weights = dropout(attention_weights, prob=self.attention_probs_dropout_prob, training=self.training)
 
         # (B, h, S, d_v)
         output = attention_weights @ V

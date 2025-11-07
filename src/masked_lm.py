@@ -28,7 +28,6 @@ class MaskedLMConfig():
     vocab_size: int
     pad_token_id: int
 
-
 class MaskedLM(nn.Module):
     def __init__(self, config: MaskedLMConfig) -> None:
         super().__init__()
@@ -54,17 +53,15 @@ class MaskedLM(nn.Module):
     def forward(self, batch: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         # attention_maskは(B, S)の形状で渡される
         # MultiHeadAttentionは(B, S, S)を期待しているので変換が必要
-        if attention_mask.dim() == 2:
+        if attention_mask is not None and attention_mask.dim() == 2:
             # (B, S) -> (B, 1, S) -> (B, S, S) にブロードキャスト
             # padding maskの場合、各query行が同じmaskを持つ
             attention_mask = attention_mask.unsqueeze(1).expand(-1, batch.shape[1], -1)
 
         # (B, S, H) + (S, H) -> (B, S, H)
-        pe = positional_encoding(batch.shape[-1], self.hidden_size, device=batch.device, dtype=torch.float32)
-        embeddings = self.token_embedding(batch)
+        embedding = positional_encoding(batch.shape[-1], self.hidden_size, device=batch.device, dtype=torch.float32)
+        embedding = embedding + self.token_embedding(batch) * (self.hidden_size ** 0.5)
 
-        # PEをembeddingと同じスケールに（std=0.02 → 約0.1の範囲）
-        input = embeddings + pe * 0.1
-        output = self.transformer_encoder(input, attention_mask)
+        output = self.transformer_encoder(embedding, attention_mask)
 
         return self.lm_head(output)

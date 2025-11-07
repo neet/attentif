@@ -16,6 +16,7 @@ def make_model_and_inputs(
     torch.manual_seed(seed)
 
     m = MultiHeadAttention(hidden_size=hidden_size, num_attention_heads=num_attention_heads).to(device)
+    m.eval()  # テスト時はdropoutを無効にする
     x = torch.randn(batch_size, seq_len, hidden_size, device=device, dtype=dtype)
     # ランダム input_ids は [1, 49] で生成（0 は pad 扱いにするため除外）
     input_ids = torch.randint(1, 50, (batch_size, seq_len), device=device)
