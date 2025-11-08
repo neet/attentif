@@ -3,33 +3,19 @@ import torch.nn as nn
 from dataclasses import dataclass
 from typing import Optional
 
-from .transformer_encoder import TransformerEncoder
-from .token_embedding import TokenEmbedding
-from .positional_encoding import positional_encoding
-
-
-class LMHead(nn.Module):
-    def __init__(self, embedding: torch.Tensor) -> None:
-        super().__init__()
-        vocab_size = embedding.shape[0]
-        self.embedding = embedding  # (V, H)
-        self.bias = nn.Parameter(torch.zeros(vocab_size))
-
-    # (B, S, H) -> (B, S, V)
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Weight tyingを使用。スケーリングはTokenEmbeddingのみで行う
-        return x @ self.embedding.mT + self.bias
+from ..modules import TransformerEncoder, TokenEmbedding, positional_encoding
+from .lm_head import LMHead
 
 @dataclass
-class MaskedLMConfig():
+class BertConfig():
     hidden_size: int
     num_attention_heads: int
     num_hidden_layers: int
     vocab_size: int
     pad_token_id: int
 
-class MaskedLM(nn.Module):
-    def __init__(self, config: MaskedLMConfig) -> None:
+class BertModel(nn.Module):
+    def __init__(self, config: BertConfig) -> None:
         super().__init__()
 
         self.hidden_size = config.hidden_size
