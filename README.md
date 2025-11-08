@@ -14,22 +14,22 @@ A toy implementation of ”Attention Is All You Need”
 
 ## Motivation
 
-I made this project in order to get a deeper understanding for the Transformer architecture, BERT, RoBERTa, T5, and GPT models. We often rely on existing Transformer implementation when we need to train a model, but I wanted to test if I can implement them from scratch, referring to the paper.
+I made this project in order to get a deeper understanding for the Transformer architecture, BERT, RoBERTa, T5, and GPT models. We often rely on existing Transformer implementation such as [Hugging Face Transformers](https://github.com/huggingface/transformers) when we need to train a model. However, I wanted to test if I can implement them from scratch, referring to the paper.
 
 This project **does** include:
 - `torch.nn.Module`
 - `torch.nn.Parameter`
 - Existing tokenizer implementation from `transformers`
-- and other primitive functions offered by PyTorch
+- And other primitive functions offered by PyTorch
 
 While this project **does not** include:
-- Models from `transformers`
+- Any models from `transformers`
 - `nn.Transformer`
-- `nn.MultiHeadAttention`
+- `nn.MultiheadAttention`
 - `nn.Embedding`
 - `nn.LayerNorm`
 - `nn.functional.softmax`
-- and other existing modules that plays an essential role in Transformer architecture
+- And other existing modules that plays an essential role in Transformer architecture
 
 ## Features
 
