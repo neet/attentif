@@ -12,7 +12,6 @@ class TokenEmbedding(nn.Module):
 
     # (B, S) -> (B, S, H)
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # sqrt(H)スケーリングを削除（weight tyingとの相互作用を避けるため）
         y = self.embedding[x]
 
         if self.pad_token_id is not None:

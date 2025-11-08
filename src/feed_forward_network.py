@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from typing import Optional
-
-from .relu import relu
 
 class FeedForwardNetwork(nn.Module):
     def __init__(self, hidden_size: int, intermediate_size: Optional[int] = None):
@@ -27,7 +26,7 @@ class FeedForwardNetwork(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # (B, S, hidden_size) -> (B, S, intermediate_size)
         y = x @ self.W1 + self.b1
-        y = relu(y)
+        y = F.gelu(y)
 
         # (B, S, intermediate_size) -> (B, S, hidden_size)
         y = y @ self.W2 + self.b2
