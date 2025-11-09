@@ -6,10 +6,6 @@ from typing import Optional
 from .softmax import softmax
 from .dropout import dropout
 
-# B: バッチサイズ
-# S: トークンの最大長
-# h: ヘッドの個数
-# d_*: 1つのヘッドが持つ隠れ状態の次元
 class MultiHeadAttention(nn.Module):
     def __init__(self, hidden_size: int, num_attention_heads: int, attention_probs_dropout_prob: float = 0.1) -> None:
         super().__init__()
