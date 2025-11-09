@@ -45,8 +45,11 @@ class MultiHeadAttention(nn.Module):
         scores = query @ key.mT / math.sqrt(self.attention_head_size)
 
         if attention_mask is not None:
+            # 1/0 マスクを 0/-inf マスクに変換
+            attention_mask = torch.where(attention_mask == 1, 0, -torch.inf)
+            attention_mask = attention_mask.unsqueeze(1).to(dtype=scores.dtype, device=scores.device)
             # (B, h, S, S) + (B, 1, S, S)
-            scores = scores + attention_mask.unsqueeze(1).to(dtype=scores.dtype, device=scores.device)
+            scores = scores + attention_mask
 
         # (B, h, S, S)
         attention_weights = softmax(scores, dim=-1)
