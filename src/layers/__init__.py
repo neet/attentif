@@ -7,4 +7,5 @@ from .softmax import softmax
 from .token_embedding import TokenEmbedding
 from .transformer_encoder import TransformerEncoder
 from .transformer_encoder_block import TransformerEncoderBlock
-
+from .transformer_decoder import TransformerDecoder
+from .transformer_decoder_block import TransformerDecoderBlock

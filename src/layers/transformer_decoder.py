@@ -10,10 +10,16 @@ class TransformerDecoder(nn.Module):
     blocks: nn.ModuleList
     ln: LayerNorm
 
-    def __init__(self, hidden_size: int, num_attention_heads: int, num_hidden_layers: int):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_attention_heads: int,
+        num_hidden_layers: int,
+        decoder_only: bool = False,
+    ):
         super().__init__()
         self.blocks = nn.ModuleList([
-            TransformerDecoderBlock(hidden_size, num_attention_heads)
+            TransformerDecoderBlock(hidden_size, num_attention_heads, decoder_only)
             for _ in range(0, num_hidden_layers)
         ])
         self.ln = LayerNorm(hidden_size)

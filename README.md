@@ -57,7 +57,7 @@ We implemented the following features so far. You can find the layers and functi
 ### Models
 
 - [x] `BertModel`
-- [ ] `GPT2Model`
+- [x] `GPT2Model`
 - [ ] `T5Model`
 
 ### Schedulers

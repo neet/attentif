@@ -13,18 +13,22 @@ class TransformerDecoderBlock(nn.Module):
     ffn: FeedForwardNetwork
 
     ln1: LayerNorm
-    ln2: LayerNorm
     ln3: LayerNorm
+    ln2: LayerNorm
 
-    def __init__(self, hidden_size: int, num_attention_heads: int) -> None:
+    def __init__(self, hidden_size: int, num_attention_heads: int, decoder_only: bool = False) -> None:
         super().__init__()
         assert hidden_size % num_attention_heads == 0, "hidden_size must be divisible by num_attention_heads"
         self.ln1 = LayerNorm(hidden_size)
-        self.ln2 = LayerNorm(hidden_size)
-        self.ln3 = LayerNorm(hidden_size)
         self.self_attn = MultiHeadAttention(hidden_size=hidden_size, num_attention_heads=num_attention_heads)
-        self.cross_attn = MultiHeadAttention(hidden_size=hidden_size, num_attention_heads=num_attention_heads)
+
+        if not decoder_only:
+            self.ln2 = LayerNorm(hidden_size)
+            self.cross_attn = MultiHeadAttention(hidden_size=hidden_size, num_attention_heads=num_attention_heads)
+
+        self.ln3 = LayerNorm(hidden_size)
         self.ffn = FeedForwardNetwork(hidden_size)
+
 
     def forward(
         self,
@@ -38,10 +42,13 @@ class TransformerDecoderBlock(nn.Module):
         x_dec_self_attn = self.self_attn(x_dec_self_attn, x_dec_self_attn, x_dec_self_attn, attention_mask=self_attention_mask)
         x_dec_self_attn = x_dec + dropout(x_dec_self_attn, training=self.training)
 
-        # x = x + dropout(attntion(ln(x_dec), x_enc, x_enc))
-        x_dec_cross_attn = self.ln2(x_dec_self_attn)
-        x_dec_cross_attn = self.cross_attn(x_dec_cross_attn, x_enc, x_enc, attention_mask=cross_attention_mask)
-        x_dec_cross_attn = x_dec_self_attn + dropout(x_dec_cross_attn, training=self.training)
+        if x_enc is not None:
+            # x = x + dropout(attntion(ln(x_dec), x_enc, x_enc))
+            x_dec_cross_attn = self.ln2(x_dec_self_attn)
+            x_dec_cross_attn = self.cross_attn(x_dec_cross_attn, x_enc, x_enc, attention_mask=cross_attention_mask)
+            x_dec_cross_attn = x_dec_self_attn + dropout(x_dec_cross_attn, training=self.training)
+        else:
+            x_dec_cross_attn = x_dec_self_attn
 
         # z = y + dropout(ffn(ln(y), ln(y), ln(y)))
         x_dec_ffn = self.ln3(x_dec_cross_attn)
