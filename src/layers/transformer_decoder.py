@@ -18,9 +18,15 @@ class TransformerDecoder(nn.Module):
         ])
         self.ln = LayerNorm(hidden_size)
 
-    def forward(self, x_dec: torch.Tensor, x_enc: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self,
+        x_dec: torch.Tensor,
+        x_enc: Optional[torch.Tensor] = None,
+        self_attention_mask: Optional[torch.Tensor] = None,
+        cross_attetnion_mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         for block in self.blocks:
-            x_dec = block(x_dec, x_enc, attention_mask)
+            x_dec = block(x_dec, x_enc, self_attention_mask, cross_attetnion_mask)
 
         return self.ln(x_dec)
 

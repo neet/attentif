@@ -26,16 +26,21 @@ class TransformerDecoderBlock(nn.Module):
         self.cross_attn = MultiHeadAttention(hidden_size=hidden_size, num_attention_heads=num_attention_heads)
         self.ffn = FeedForwardNetwork(hidden_size)
 
-    # TODO: Apply causal mask to attention_mask
-    def forward(self, x_dec: torch.Tensor, x_enc: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self,
+        x_dec: torch.Tensor,
+        x_enc: Optional[torch.Tensor] = None,
+        self_attention_mask: Optional[torch.Tensor] = None,
+        cross_attention_mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         # x = x + dropout(attntion(ln(x_dec), ln(x_dec), ln(x_dec)))
         x_dec_self_attn = self.ln1(x_dec)
-        x_dec_self_attn = self.self_attn(x_dec_self_attn, x_dec_self_attn, x_dec_self_attn, attention_mask=attention_mask)
+        x_dec_self_attn = self.self_attn(x_dec_self_attn, x_dec_self_attn, x_dec_self_attn, attention_mask=self_attention_mask)
         x_dec_self_attn = x_dec + dropout(x_dec_self_attn, training=self.training)
 
         # x = x + dropout(attntion(ln(x_dec), x_enc, x_enc))
         x_dec_cross_attn = self.ln2(x_dec_self_attn)
-        x_dec_cross_attn = self.cross_attn(x_dec_cross_attn, x_enc, x_enc, attention_mask=attention_mask)
+        x_dec_cross_attn = self.cross_attn(x_dec_cross_attn, x_enc, x_enc, attention_mask=cross_attention_mask)
         x_dec_cross_attn = x_dec_self_attn + dropout(x_dec_cross_attn, training=self.training)
 
         # z = y + dropout(ffn(ln(y), ln(y), ln(y)))
