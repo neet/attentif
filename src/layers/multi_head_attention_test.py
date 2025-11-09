@@ -1,8 +1,6 @@
 import torch
 
 from .multi_head_attention import MultiHeadAttention
-from .mask_padding import make_padding_mask
-from .mask_causal import make_causal_mask
 
 
 def make_model_and_inputs(
@@ -23,17 +21,44 @@ def make_model_and_inputs(
     return m, x, input_ids
 
 
+def _make_padding_mask(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
+    """Create padding mask: -inf for padding positions, 0.0 for valid positions."""
+    # (B, S)
+    mask = (input_ids == pad_token_id).float()
+    # Convert to -inf for padding, 0.0 for valid
+    mask = mask.masked_fill(mask == 1.0, float('-inf'))
+    return mask
+
+
+def _make_causal_mask(seq_len: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    """Create causal mask: -inf for future positions, 0.0 for current/past positions."""
+    # (S, S) upper triangular
+    mask = torch.triu(torch.ones(seq_len, seq_len, device=device, dtype=dtype), diagonal=1)
+    mask = mask.masked_fill(mask == 1.0, float('-inf'))
+    return mask
+
+
 def _full_mask(
     input_ids: torch.Tensor, *, pad_token_id: int, dtype: torch.dtype, device: torch.device
-):
+) -> torch.Tensor:
     """
-    (B,S) pad_mask を (B,1,S) にして key列へ、(S,S) causal はそのまま。
-    ふつうに足し算するだけで (B,S,S) にブロードキャストされる。
+    Combine padding mask and causal mask.
+    padding mask: (B, S) → (B, S, S) broadcasts over query dimension
+    causal mask: (S, S) → broadcasts over batch dimension
     """
-    pm = make_padding_mask(input_ids, pad_token_id=0)
-    cm = make_causal_mask(input_ids)
-    mask = pm.unsqueeze(1) + cm
-    return mask
+    batch_size, seq_len = input_ids.shape
+
+    # Padding mask: (B, S) - applies to key positions
+    pad_mask = _make_padding_mask(input_ids, pad_token_id)  # (B, S)
+    pad_mask = pad_mask.unsqueeze(1).expand(batch_size, seq_len, seq_len)  # (B, S, S)
+
+    # Causal mask: (S, S) - applies to all batches
+    causal_mask = _make_causal_mask(seq_len, device, dtype)  # (S, S)
+
+    # Combine: (B, S, S) + (S, S) → (B, S, S)
+    full_mask = pad_mask + causal_mask
+
+    return full_mask
 
 
 def test_forward_shape_and_dtype_device():
@@ -41,7 +66,7 @@ def test_forward_shape_and_dtype_device():
                                             device="cpu", dtype=torch.float32)
     pad = 0
     mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)
-    y = m(x, mask)
+    y = m(x, x, x, mask)
     assert y.shape == (3, 7, 24)
     assert y.dtype == x.dtype and y.device == x.device
 
@@ -50,8 +75,8 @@ def test_none_mask_equals_zero_mask():
                                     device="cpu", dtype=torch.float32)
     B, S, _H = x.shape
     zero = torch.zeros(B, S, S, dtype=x.dtype, device=x.device)
-    y_none = m(x, None)
-    y_zero = m(x, zero)
+    y_none = m(x, x, x, None)
+    y_zero = m(x, x, x, zero)
     torch.testing.assert_close(y_none, y_zero, rtol=1e-5, atol=1e-6)
 
 
@@ -60,12 +85,12 @@ def test_padding_positions_do_not_affect_nonpad_queries():
                                             device="cpu")
     pad = 0
     mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)
-    y0 = m(x, mask).detach()
+    y0 = m(x, x, x, mask).detach()
 
     # key 側の PAD だけ巨大ノイズ → 非PADな query の出力は不変
     x2 = x.clone()
     x2[:, -2:, :] += 1e3
-    y1 = m(x2, mask).detach()
+    y1 = m(x, x2, x2, mask).detach()
 
     torch.testing.assert_close(y0[:, :-2, :], y1[:, :-2, :], rtol=1e-4, atol=1e-4)
 
@@ -76,12 +101,12 @@ def test_causal_mask_blocks_future_information():
     pad = 0
     mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)
     t = 3
-    y0 = m(x, mask).detach()
+    y0 = m(x, x, x, mask).detach()
 
     # 未来 (t+1..S-1) に巨大ノイズ → 因果で見えないので ≤t の出力は不変
     x_future = x.clone()
     x_future[:, t+1:, :] += 1e3
-    y1 = m(x_future, mask).detach()
+    y1 = m(x_future, x_future, x_future, mask).detach()
 
     torch.testing.assert_close(y0[:, :t+1, :], y1[:, :t+1, :], rtol=1e-4, atol=1e-4)
 
@@ -92,10 +117,10 @@ def test_output_projection_zero_makes_zero_output():
     mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)
 
     with torch.no_grad():
-        m.W_O.zero_()
-        m.b_O.zero_()
+        m.o_proj.weight.zero_()
+        m.o_proj.bias.zero_()
 
-    y = m(x, mask)
+    y = m(x, x, x, mask)
     assert torch.allclose(y, torch.zeros_like(y), atol=1e-6)
 
 
@@ -106,7 +131,7 @@ def test_backward_grads_exist():
     mask = _full_mask(input_ids, pad_token_id=pad, dtype=x.dtype, device=x.device)
 
     x.requires_grad_(True)
-    y = m(x, mask)
+    y = m(x, x, x, mask)
     loss = y.pow(2).mean()
     loss.backward()
 

@@ -60,7 +60,7 @@ class MultiHeadAttention(nn.Module):
         output = output.view(batch_size, seq_len, self.num_attention_heads * self.attention_head_size)
 
         # (B, S, h*d_v)
-        output = output @ self.W_O + self.b_O
+        output = self.o_proj(output)
 
         return output
 
