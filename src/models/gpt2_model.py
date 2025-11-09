@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from dataclasses import dataclass
-from typing import Optional
 
 from ..layers import TransformerDecoder, TokenEmbedding, positional_encoding
 from .lm_head import LMHead
@@ -34,16 +33,25 @@ class GPT2Model(nn.Module):
     def _reset_parameters(self):
         nn.init.normal_(self.embedding, mean=0.0, std=0.02)
 
-    def forward(self, batch: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        if attention_mask is not None and attention_mask.dim() == 2:
-            # (B, S) -> (B, 1, S) -> (B, S, S)
-            attention_mask = attention_mask.unsqueeze(1).expand(-1, batch.shape[1], -1)
+    def forward(self, batch: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        # (B, S)
+        if attention_mask.dim() == 2:
+            # (B, 1, S)
+            attention_mask = attention_mask.unsqueeze(1)
+            # (B, S, S)
+            attention_mask = attention_mask.expand(-1, batch.shape[1], -1)
+
+        # HF Tokenizerから返ってくるのは積をとれば入力になる方式。triuは逆なので反転させる
+        causal_mask = torch.triu(torch.ones_like(attention_mask), diagonal=1)
+        causal_mask = torch.where(causal_mask == 0, 1, 0)
+
+        # (B, S, S)
+        attention_mask = attention_mask * causal_mask
 
         # (B, S, H) + (S, H) -> (B, S, H)
         embedding = positional_encoding(batch.shape[-1], self.hidden_size, device=batch.device, dtype=torch.float32)
         embedding = embedding + self.token_embedding(batch) * (self.hidden_size ** 0.5)
 
-        # たぶんCausal Maskを適用するならここ
         output = self.transformer_decoder(embedding, None, attention_mask)
 
         return self.lm_head(output)

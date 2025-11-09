@@ -22,19 +22,16 @@ def make_model_and_inputs(
 
 
 def _make_padding_mask(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
-    """Create padding mask: -inf for padding positions, 0.0 for valid positions."""
+    """Create padding mask: 1 for valid positions, 0 for padding positions."""
     # (B, S)
-    mask = (input_ids == pad_token_id).float()
-    # Convert to -inf for padding, 0.0 for valid
-    mask = mask.masked_fill(mask == 1.0, float('-inf'))
+    mask = (input_ids != pad_token_id).float()
     return mask
 
 
 def _make_causal_mask(seq_len: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
-    """Create causal mask: -inf for future positions, 0.0 for current/past positions."""
-    # (S, S) upper triangular
-    mask = torch.triu(torch.ones(seq_len, seq_len, device=device, dtype=dtype), diagonal=1)
-    mask = mask.masked_fill(mask == 1.0, float('-inf'))
+    """Create causal mask: 1 for current/past positions, 0 for future positions."""
+    # (S, S) lower triangular (including diagonal)
+    mask = torch.tril(torch.ones(seq_len, seq_len, device=device, dtype=dtype))
     return mask
 
 
@@ -45,6 +42,7 @@ def _full_mask(
     Combine padding mask and causal mask.
     padding mask: (B, S) → (B, S, S) broadcasts over query dimension
     causal mask: (S, S) → broadcasts over batch dimension
+    Both use 1 for valid positions, 0 for masked positions.
     """
     batch_size, seq_len = input_ids.shape
 
@@ -55,8 +53,9 @@ def _full_mask(
     # Causal mask: (S, S) - applies to all batches
     causal_mask = _make_causal_mask(seq_len, device, dtype)  # (S, S)
 
-    # Combine: (B, S, S) + (S, S) → (B, S, S)
-    full_mask = pad_mask + causal_mask
+    # Combine: (B, S, S) * (S, S) → (B, S, S)
+    # Both must be 1 for a position to be valid
+    full_mask = pad_mask * causal_mask
 
     return full_mask
 
@@ -70,14 +69,15 @@ def test_forward_shape_and_dtype_device():
     assert y.shape == (3, 7, 24)
     assert y.dtype == x.dtype and y.device == x.device
 
-def test_none_mask_equals_zero_mask():
+def test_none_mask_equals_ones_mask():
+    """Test that no mask is equivalent to an all-ones (all valid) mask."""
     m, x, _ = make_model_and_inputs(batch_size=2, seq_len=5, hidden_size=16, num_attention_heads=4,
                                     device="cpu", dtype=torch.float32)
     B, S, _H = x.shape
-    zero = torch.zeros(B, S, S, dtype=x.dtype, device=x.device)
+    ones = torch.ones(B, S, S, dtype=x.dtype, device=x.device)
     y_none = m(x, x, x, None)
-    y_zero = m(x, x, x, zero)
-    torch.testing.assert_close(y_none, y_zero, rtol=1e-5, atol=1e-6)
+    y_ones = m(x, x, x, ones)
+    torch.testing.assert_close(y_none, y_ones, rtol=1e-5, atol=1e-6)
 
 
 def test_padding_positions_do_not_affect_nonpad_queries():

@@ -48,7 +48,7 @@ The project implements a standard transformer encoder architecture with all comp
    - Implements scaled dot-product attention with multiple heads
    - Uses learnable weight matrices W_Q, W_K, W_V, W_O (and biases b_Q, b_K, b_V, b_O)
    - Accepts optional `attention_mask` parameter for padding/causal masking
-   - Mask format: (batch_size, seq_len, seq_len) tensor with 0.0 for valid positions, -inf for masked positions
+   - Mask format: Follows HuggingFace Tokenizer convention - 1 for tokens to attend to, 0 for tokens to mask
 
 2. **TransformerEncoderBlock** (`src/transformer_encoder_block.py`):
    - Follows pre-LN (pre-layer normalization) architecture
@@ -63,16 +63,17 @@ The project implements a standard transformer encoder architecture with all comp
    - Complete BERT-style masked language model
    - Uses weight tying between token embeddings and LM head
    - Default config: hidden_size=512, num_attention_heads=8, num_blocks=12
-   - Handles attention mask conversion from (batch_size, seq_len) to (batch_size, seq_len, seq_len) format
+   - Accepts attention masks in HuggingFace format (1 for attend, 0 for mask) and broadcasts from (batch_size, seq_len) to (batch_size, seq_len, seq_len) as needed
 
 ### Key Implementation Details
 
 - **Positional Encoding** (`src/positional_encoding.py`): Uses sinusoidal positional encoding (not learned). Returns (seq_len, hidden_size) tensor that broadcasts with batch.
 
 - **Attention Masks**:
-  - `make_padding_mask()` in `src/mask_padding.py`: Converts token IDs to mask (0.0 for valid, -inf for padding)
-  - `make_causal_mask()` in `src/mask_causal.py`: Creates lower-triangular mask for autoregressive models
-  - Masks are added to attention scores before softmax
+  - Input masks follow HuggingFace Tokenizer convention: 1 for tokens to attend to, 0 for tokens to mask
+  - `make_padding_mask()` in `src/mask_padding.py`: Converts token IDs to attention mask (1 for valid tokens, 0 for padding)
+  - `make_causal_mask()` in `src/mask_causal.py`: Creates lower-triangular mask for autoregressive models (1 for valid positions, 0 for masked future tokens)
+  - Internally, masks may be converted to additive format (-inf for masked positions) before being added to attention scores
 
 - **Custom Implementations**: All basic operations (softmax, relu, dropout, layer_norm) are implemented from scratch in separate modules for educational purposes.
 
