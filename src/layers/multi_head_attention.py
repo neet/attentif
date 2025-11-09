@@ -19,45 +19,32 @@ class MultiHeadAttention(nn.Module):
         self.attention_head_size = hidden_size // num_attention_heads
         self.attention_probs_dropout_prob = attention_probs_dropout_prob
 
-        self.W_Q = nn.Parameter(torch.empty(hidden_size, hidden_size))
-        self.W_K = nn.Parameter(torch.empty(hidden_size, hidden_size))
-        self.W_V = nn.Parameter(torch.empty(hidden_size, hidden_size))
+        self.q_proj = nn.Linear(hidden_size, hidden_size)
+        self.k_proj = nn.Linear(hidden_size, hidden_size)
+        self.v_proj = nn.Linear(hidden_size, hidden_size)
+        self.o_proj = nn.Linear(hidden_size, hidden_size)
 
-        self.b_Q = nn.Parameter(torch.zeros(hidden_size))
-        self.b_K = nn.Parameter(torch.zeros(hidden_size))
-        self.b_V = nn.Parameter(torch.zeros(hidden_size))
-
-        self.W_O = nn.Parameter(torch.empty(hidden_size, hidden_size))
-        self.b_O = nn.Parameter(torch.zeros(hidden_size))
-
-        self._reset_parameters()
-
-    def _reset_parameters(self):
-        for param in [self.W_Q, self.W_K, self.W_V, self.W_O]:
-            nn.init.xavier_uniform_(param)
-
-    # f: (B, S, h*d_k) -> (B, S, S) -> (B, S, h*d_v)
-    def forward(self, batch: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        batch_size, seq_len, hidden_size = batch.shape
-        assert hidden_size == self.hidden_size
+    def forward(self, x_q: torch.Tensor, x_k: torch.Tensor, x_v: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        # query, key, value はそれぞれ同じ shape を想定する
+        batch_size, seq_len, hidden_size = x_q.shape
 
         # (B, S, h*d)
-        Q = batch @ self.W_Q + self.b_Q
-        K = batch @ self.W_K + self.b_K
-        V = batch @ self.W_V + self.b_V
+        query = self.q_proj(x_q)
+        key = self.k_proj(x_k)
+        value = self.v_proj(x_v)
 
         # (B, S, h, d)
-        Q = Q.view(batch_size, seq_len, self.num_attention_heads, self.attention_head_size)
-        K = K.view(batch_size, seq_len, self.num_attention_heads, self.attention_head_size)
-        V = V.view(batch_size, seq_len, self.num_attention_heads, self.attention_head_size)
+        query = query.view(batch_size, seq_len, self.num_attention_heads, self.attention_head_size)
+        key = key.view(batch_size, seq_len, self.num_attention_heads, self.attention_head_size)
+        value = value.view(batch_size, seq_len, self.num_attention_heads, self.attention_head_size)
 
         # (B, h, S, d)
-        Q = Q.permute(0, 2, 1, 3).contiguous()
-        K = K.permute(0, 2, 1, 3).contiguous()
-        V = V.permute(0, 2, 1, 3).contiguous()
+        query = query.permute(0, 2, 1, 3).contiguous()
+        key = key.permute(0, 2, 1, 3).contiguous()
+        value = value.permute(0, 2, 1, 3).contiguous()
 
         # (B, h, S, S)
-        scores = Q @ K.mT / math.sqrt(self.attention_head_size)
+        scores = query @ key.mT / math.sqrt(self.attention_head_size)
 
         if attention_mask is not None:
             # (B, h, S, S) + (B, 1, S, S)
@@ -68,7 +55,7 @@ class MultiHeadAttention(nn.Module):
         attention_weights = dropout(attention_weights, prob=self.attention_probs_dropout_prob, training=self.training)
 
         # (B, h, S, d_v)
-        output = attention_weights @ V
+        output = attention_weights @ value
 
         # (B, S, h, d_v)
         output = output.permute(0, 2, 1, 3).contiguous()
