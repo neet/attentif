@@ -51,8 +51,8 @@ We implemented the following features so far. You can find the layers and functi
 - [x] `TokenEmbedding`
 - [x] `TransformerEncoder`
 - [x] `TransformerEncoderBlock`
-- [ ] `TransformerDecoder`
-- [ ] `TransformerDecoderBlock`
+- [x] `TransformerDecoder`
+- [x] `TransformerDecoderBlock`
 
 ### Models
 

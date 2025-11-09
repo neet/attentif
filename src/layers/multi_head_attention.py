@@ -25,7 +25,7 @@ class MultiHeadAttention(nn.Module):
         self.o_proj = nn.Linear(hidden_size, hidden_size)
 
     def forward(self, x_q: torch.Tensor, x_k: torch.Tensor, x_v: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        # query, key, value はそれぞれ同じ shape を想定する
+        assert x_q.shape == x_k.shape == x_v.shape, "x_q, x_k, and x_v must have an identical shape"
         batch_size, seq_len, hidden_size = x_q.shape
 
         # (B, S, h*d)
