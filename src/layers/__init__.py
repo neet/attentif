@@ -1,4 +1,4 @@
-from .dropout import dropout
+from .dropout import Dropout
 from .feed_forward_network import FeedForwardNetwork
 from .layer_norm import LayerNorm
 from .multi_head_attention import MultiHeadAttention

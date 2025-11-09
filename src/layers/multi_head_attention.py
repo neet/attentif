@@ -4,7 +4,7 @@ import math
 from typing import Optional
 
 from .softmax import softmax
-from .dropout import dropout
+from .dropout import Dropout
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, hidden_size: int, num_attention_heads: int, attention_probs_dropout_prob: float = 0.1) -> None:
@@ -19,6 +19,8 @@ class MultiHeadAttention(nn.Module):
         self.k_proj = nn.Linear(hidden_size, hidden_size)
         self.v_proj = nn.Linear(hidden_size, hidden_size)
         self.o_proj = nn.Linear(hidden_size, hidden_size)
+
+        self.dropout = Dropout(self.attention_probs_dropout_prob)
 
     def forward(self, x_q: torch.Tensor, x_k: torch.Tensor, x_v: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         assert x_q.shape == x_k.shape == x_v.shape, "x_q, x_k, and x_v must have an identical shape"
@@ -48,7 +50,7 @@ class MultiHeadAttention(nn.Module):
 
         # (B, h, S, S)
         attention_weights = softmax(scores, dim=-1)
-        attention_weights = dropout(attention_weights, prob=self.attention_probs_dropout_prob, training=self.training)
+        attention_weights = self.dropout(attention_weights)
 
         # (B, h, S, d_v)
         output = attention_weights @ value
