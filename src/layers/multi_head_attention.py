@@ -46,7 +46,7 @@ class MultiHeadAttention(nn.Module):
 
         if attention_mask is not None:
             # 1/0 マスクを 0/-inf マスクに変換
-            attention_mask = torch.where(attention_mask == 1, 0, -torch.inf)
+            attention_mask = torch.where(attention_mask == 1, 0, -1e9)
             attention_mask = attention_mask.unsqueeze(1).to(dtype=scores.dtype, device=scores.device)
             # (B, h, S, S) + (B, 1, S, S)
             scores = scores + attention_mask
