@@ -1,4 +1,4 @@
-from .dropout import dropout
+from .dropout import Dropout
 from .feed_forward_network import FeedForwardNetwork
 from .layer_norm import LayerNorm
 from .multi_head_attention import MultiHeadAttention
@@ -7,4 +7,5 @@ from .softmax import softmax
 from .token_embedding import TokenEmbedding
 from .transformer_encoder import TransformerEncoder
 from .transformer_encoder_block import TransformerEncoderBlock
-
+from .transformer_decoder import TransformerDecoder
+from .transformer_decoder_block import TransformerDecoderBlock

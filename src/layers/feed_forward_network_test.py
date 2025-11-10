@@ -59,10 +59,10 @@ def test_ffn_is_deterministic_in_eval_mode_with_fixed_weights():
     # 重みを固定してから2回実行
     with torch.no_grad():
         torch.manual_seed(42)
-        ffn.W1.copy_(torch.randn_like(ffn.W1))
-        ffn.W2.copy_(torch.randn_like(ffn.W2))
-        ffn.b1.zero_()
-        ffn.b2.zero_()
+        ffn.up_proj.weight.copy_(torch.randn_like(ffn.up_proj.weight))
+        ffn.down_proj.weight.copy_(torch.randn_like(ffn.down_proj.weight))
+        ffn.up_proj.bias.zero_()
+        ffn.down_proj.bias.zero_()
 
     y1 = ffn(x)
     y2 = ffn(x)

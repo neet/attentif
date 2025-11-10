@@ -19,10 +19,8 @@ class TransformerEncoder(nn.Module):
         self.ln = LayerNorm(hidden_size)
 
     def forward(self, batch: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        out = batch
-
         for block in self.blocks:
-            out = block(out, attention_mask)
+            batch = block(batch, attention_mask)
 
-        return self.ln(out)
+        return self.ln(batch)
 
