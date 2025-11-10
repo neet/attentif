@@ -8,9 +8,13 @@ A toy implementation of ”Attention Is All You Need”
 
 ## Demo
 
-### BERT
+**BERT**
 
 ![Screenshot of Jupyter Lab, solving a fill-mask task by BERT](./assets/bert.jpeg)
+
+**GPT2**
+
+![Screenshot of Jupyter Lab, solving a generate text task by GPT2](./assets/gpt2.png)
 
 ## Motivation
 
@@ -71,4 +75,5 @@ We use `transformers` for schedulers for now, but have a plan to implement them 
 
 - Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). [Attention is All You Need](https://arxiv.org/abs/1706.03762). NeurIPS 2017.
 - Devlin, J., Chang, M. W., Lee, K., & Toutanova, K. (2018). [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/abs/1810.04805). NAACL 2019.
+- Radford, A., Wu, J., Child, R., Luan, D., Amodei, D., & Sutskever, I. (2019). [Language Models are Unsupervised Multitask Learners](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf). OpenAI.
 
