@@ -43,7 +43,6 @@ We implemented the following features so far. You can find the layers and functi
 
 - [x] `dropout`
 - [x] `softmax`
-- [x] `relu`
 - [ ] `gelu`
 - [x] `positional_encoding`
 
@@ -69,7 +68,7 @@ We implemented the following features so far. You can find the layers and functi
 We use `transformers` for schedulers for now, but have a plan to implement them from scratch in the future.
 
 - [ ] `AdamW`
-- [ ] `CrossEntropy`
+- [x] `CrossEntropy`
 
 ## References
 
